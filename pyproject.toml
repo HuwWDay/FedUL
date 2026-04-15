@@ -33,6 +33,24 @@ local-epochs = 1
 learning-rate = 0.1
 batch-size = 32
 
-[tool.flwr.federations.local]
-address = ":local:"
-options.num-supernodes = 5
+
+#######################################################################
+# CONFIGURATION MIGRATION NOTICE:
+#
+# What was previously called "federation config" for SuperLink
+# connections in pyproject.toml has been renamed and moved.
+#
+# These settings are now **SuperLink connection configuration**
+# and are defined in the Flower configuration file.
+#
+# The entries below are commented out intentionally and are kept
+# only as a migration reference.
+#
+# Docs: https://flower.ai/docs/framework/ref-flower-configuration.html
+#######################################################################
+
+# [tool.flwr.federations]
+# default = "local"
+
+# [tool.flwr.federations.local]
+# options.num-supernodes = 5

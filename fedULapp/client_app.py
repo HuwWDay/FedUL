@@ -1,3 +1,5 @@
+import logging
+from flwr.common.logger import log
 import torch
 from torch import nn, optim
 from collections import OrderedDict
@@ -6,20 +8,18 @@ from flwr.client import ClientApp
 
 from .task import prepare_data, train, test, DigitModel
 
-# Cache the dataset globally so we don't reload it every time a client spawns
 _data_cache = None
 
 def get_data(config):
     global _data_cache
     if _data_cache is None:
-        # Pull batch_size from the pyproject.toml run_config dictionary
         batch_size = config.get("batch-size", 32)
         _data_cache = prepare_data(batch_size=batch_size)
     return _data_cache
 
-
 class FedULClient(fl.client.NumPyClient):
-    def __init__(self, model, train_loader, val_loader, device, Pi, priors_corr, prior_test, lr, local_epochs):
+    def __init__(self, cid, model, train_loader, val_loader, device, Pi, priors_corr, prior_test, lr, local_epochs):
+        self.cid = cid # Store the client ID so we know who is talking
         self.model = model
         self.train_loader = train_loader
         self.val_loader = val_loader
@@ -28,8 +28,6 @@ class FedULClient(fl.client.NumPyClient):
         self.priors_corr = priors_corr
         self.prior_test = prior_test
         self.loss_fun = nn.CrossEntropyLoss()
-        
-        # Hyperparameters driven by TOML
         self.lr = lr
         self.local_epochs = local_epochs
 
@@ -45,11 +43,15 @@ class FedULClient(fl.client.NumPyClient):
         self.set_parameters(parameters)
         optimizer = optim.Adam(params=self.model.parameters(), lr=self.lr)
         
+        train_loss = 0.0
         for _ in range(self.local_epochs):
             train_loss = train(
                 self.model, self.train_loader, optimizer, self.loss_fun, 
                 self.device, self.Pi, self.priors_corr, self.prior_test
             )
+        
+        # LOG THE TRAINING PROGRESS
+        log(logging.INFO, f"Client {self.cid} finished training. Loss: {train_loss:.4f}")
             
         return self.get_parameters(config={}), len(self.train_loader.dataset), {"loss": train_loss}
 
@@ -60,20 +62,18 @@ class FedULClient(fl.client.NumPyClient):
 
 
 def client_fn(context: fl.common.Context):
-    # Extract configs directly from the pyproject.toml
     run_config = context.run_config
     lr = run_config.get("learning-rate", 0.1)
     local_epochs = run_config.get("local-epochs", 1)
     
-    # Flower assigns a node_id to each client instance
     client_idx = int(context.node_config["partition-id"])
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = DigitModel(class_num=10).to(device)
 
-    # Lazily load data
     train_loaders, val_loaders, _, prior_test, client_priors_corr, client_Pi = get_data(run_config)
 
     return FedULClient(
+        cid=client_idx, # Pass it here
         model=model,
         train_loader=train_loaders[client_idx],
         val_loader=val_loaders[client_idx],
@@ -85,5 +85,4 @@ def client_fn(context: fl.common.Context):
         local_epochs=local_epochs
     ).to_client()
 
-# Create the ClientApp
 app = ClientApp(client_fn=client_fn)

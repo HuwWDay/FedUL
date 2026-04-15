@@ -1,9 +1,10 @@
 import torch
 from torch import nn, optim
+import torchvision
 import torchvision.transforms as transforms
 import numpy as np
 
-# Import from the original GitHub code you copied over
+# Import from the original GitHub code
 from .nets.models import DigitModel
 from .utils import data_utils
 
@@ -16,6 +17,14 @@ def setup_seed(seed):
 def prepare_data(clientnum=5, setnum=10, classnum=10, batch_size=32, seed=0, noniid=False):
     setup_seed(seed)
     
+    # -----------------------------------------------------------------
+    # FLOWER AUTO-DOWNLOADER
+    # We use torchvision purely to force the download to a local folder.
+    # This guarantees the files exist before data_utils looks for them.
+    # -----------------------------------------------------------------
+    # torchvision.datasets.MNIST(root='./data', train=True, download=True)
+    # torchvision.datasets.MNIST(root='./data', train=False, download=True)
+
     # Data Augmentation
     rotate_degree = 20
     train_transform = transforms.Compose([
@@ -30,7 +39,7 @@ def prepare_data(clientnum=5, setnum=10, classnum=10, batch_size=32, seed=0, non
         transforms.Normalize((0.1307, 0.1307, 0.1307), (0.3081, 0.3081, 0.3081))
     ])
 
-    # Get splited data
+    # Let the original data_utils handle the complex FedUL matrix math
     if classnum == 2:
         client_train_data, client_test_data, prior_test, client_priors_corr, client_Pi = \
             data_utils.MNIST_SET(data_path="./data", clientnum=clientnum, setnum_perclient=setnum)
