@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "quickstart-pytorch"
+name = "fedULapp"
 version = "1.1.1"
-description = "Federated Learning with PyTorch and Flower (Quickstart Example)"
+description = "Federated Learning without Labels (FedUL) example application using PyTorch and Flower."
 license = {file = "LICENSE"}
 dependencies = [
     "flwr[simulation]>=1.28.0",
@@ -23,8 +23,8 @@ fab-format-version = 1
 flwr-version-target = "1.29.0"
 
 [tool.flwr.app.components]
-serverapp = "pytorchexample.server_app:app"
-clientapp = "pytorchexample.client_app:app"
+serverapp = "fedULapp.server_app:app"
+clientapp = "fedULapp.client_app:app"
 
 [tool.flwr.app.config]
 num-server-rounds = 3
@@ -32,3 +32,7 @@ fraction-evaluate = 0.5
 local-epochs = 1
 learning-rate = 0.1
 batch-size = 32
+
+[tool.flwr.federations.local]
+address = ":local:"
+options.num-supernodes = 5
